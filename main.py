@@ -160,21 +160,16 @@ async def on_message(message):
             current = config["current_counts"].get(uid_str, 0) + 1
             config["current_counts"][uid_str] = current
 
-            if current >= config["watch_count"]:
+            # Trigger deletion after 2 messages
+            if current >= 2:
                 try:
-                    messages_to_delete = []
-                    async for m in message.channel.history(limit=100):
-                        if (datetime.now(timezone.utc) - m.created_at) < timedelta(days=14):
-                            messages_to_delete.append(m)
-                            if len(messages_to_delete) >= config["watch_count"]:
-                                break
-                    if messages_to_delete:
-                        await message.channel.delete_messages(messages_to_delete)
-
+                    await message.channel.purge(limit=None)
                     config["current_counts"][uid_str] = 0
                     save_config()
-                except:
-                    pass
+                except discord.Forbidden:
+                    print(f"Missing permissions to delete messages in {message.channel.name}")
+                except Exception as e:
+                    print(f"Failed to delete messages in {message.channel.name}: {e}")
 
     # --- User-specific deletion ---
     for guild_channels in channel_config.get(guild_id, {}).values():
