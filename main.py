@@ -76,9 +76,7 @@ async def enablechannel(ctx, channel: discord.TextChannel):
     if guild_id not in purge_config:
         purge_config[guild_id] = {}
 
-    purge_config[guild_id][channel_id] = {
-        "delay": 10  # default delay in seconds
-    }
+    purge_config[guild_id][channel_id] = {"delay": None }
     save_purge_config()
     await ctx.send(f"{ctx.author.mention} enabled timed purge in {channel.mention}")
 
@@ -174,6 +172,21 @@ async def delayed_purge(channel: discord.TextChannel, delay: int):
     except Exception as e:
         print(f"Failed to purge channel {channel.id}: {e}")
 
+# Show current purge timer for a channel
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def showpurgetime(ctx, channel: discord.TextChannel):
+    guild_id = str(ctx.guild.id)
+    channel_id = str(channel.id)
+
+    if guild_id in purge_config and channel_id in purge_config[guild_id]:
+        delay = purge_config[guild_id][channel_id].get("delay")
+        if delay is None:
+            await ctx.send(f"{channel.mention} currently has no purge timer set.")
+        else:
+            await ctx.send(f"Purge timer for {channel.mention} is set to {delay} seconds.")
+    else:
+        await ctx.send(f"{channel.mention} is not enabled for timed purge. Use !enablechannel first.")
 
 # ---------------- Event ----------------
 @bot.event
@@ -192,9 +205,10 @@ async def on_message(message):
     bot.active_timers = active_timers
 
     if guild_id in purge_config and channel_id in purge_config[guild_id]:
-        if channel_id not in active_timers:
-            delay = purge_config[guild_id][channel_id]["delay"]
-
+        delay = purge_config[guild_id][channel_id].get("delay")
+        if delay is None:
+            pass  # skip timed purge until delay is set
+        elif channel_id not in active_timers:
             async def delayed():
                 await discord.utils.sleep_until(discord.utils.utcnow() + timedelta(seconds=delay))
                 try:
@@ -207,8 +221,10 @@ async def on_message(message):
             bot.active_timers[channel_id] = bot.loop.create_task(delayed())
 
     # ---------------- USER TARGET DELETE ----------------
-    for guild_channels in channel_config.get(guild_id, {}).values():
+    if guild_id in channel_config and channel_id in channel_config[guild_id]:
+        guild_channels = channel_config[guild_id][channel_id]
         targets = guild_channels.get("targets", [])
+
         if message.author.id in targets:
             uid_str = str(message.author.id)
             current = guild_channels["current_counts"].get(uid_str, 0) + 1
@@ -254,6 +270,7 @@ async def show_commands(ctx):
 `!enablechannel #channel` - Enable timed purge in a channel  
 `!disablechannel #channel` - Disable timed purge in a channel  
 `!setpurgetime #channel <seconds>` - Set how long before the channel is fully purged  
+`!showpurgetime #channel` - Show the current purge timer for a channel  
 
 **User Watch Auto-Delete**
 `!addusertarget #channel @user` - Watch a specific user in a channel  
