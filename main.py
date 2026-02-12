@@ -51,7 +51,7 @@ async def on_ready():
 
 # ---------------- Commands ----------------
 
-# Enable channel-wide deletion
+# Enable channel wide deletion
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def enablechannel(ctx, channel: discord.TextChannel):
@@ -67,7 +67,7 @@ async def enablechannel(ctx, channel: discord.TextChannel):
         "current_counts": {"all": 0}
     }
     save_config()
-    await ctx.send(f"{ctx.author.mention} enabled {channel.mention} for channel-wide auto-delete.")
+    await ctx.send(f"{ctx.author.mention} enabled {channel.mention} for channel wide auto-delete.")
 
 # Disable channel
 @bot.command()
@@ -155,7 +155,7 @@ async def on_message(message):
     # --- Channel wide deletion ---
     if guild_id in channel_config and channel_id in channel_config[guild_id]:
         config = channel_config[guild_id][channel_id]
-        if not config["targets"]:  # empty = channel-wide
+        if not config["targets"]:  # empty = channel wide
             uid_str = "all"
             current = config["current_counts"].get(uid_str, 0) + 1
             config["current_counts"][uid_str] = current
@@ -349,29 +349,30 @@ async def hello(ctx):
 @bot.command(name="commands")
 async def show_commands(ctx):
     help_text = """
-**Available Commands**
+**Available Bot Commands**
 
 **Channel Auto-Delete**
-`!enablechannel #channel` - Enable channel-wide auto-delete  
-`!disablechannel #channel` - Disable channel auto-delete  
-`!setwatchcount #channel <number>` - Set number of messages before deletion  
+`!enablechannel #channel` - Enable channel wide auto-delete (all messages watched)  
+`!disablechannel #channel` - Disable auto-delete in a channel  
+`!setwatchcount #channel <number>` - Set the number of messages before deletion triggers  
 
 **User Watch**
 `!addusertarget #channel @user` - Watch a specific user in a channel  
 `!removeusertarget #channel @user` - Stop watching a specific user  
 
 **Role Management**
-`!addroles <id> <role name>` - Add a role to the assignable roles list  
-`!roles` - Show all assignable roles and their IDs  
-`!assign @user <id>` - Assign a role to a user by ID  
-`!removeroles @user <id>` - Remove a role from a user by ID  
+`!addroles <role name> <internal ID>` - Add a role to the assignable roles list (creates it if missing)  
+`!roles` - Show all assignable roles and their internal IDs  
+`!assign @user <internal ID>` - Assign a role to a user by internal ID  
+`!removeroles @user <internal ID>` - Remove a role from a user by internal ID  
+`!deleteroles <internal ID>` - Delete a role from the server and remove it from the mapping  
 
-**Fun/Test**
-`!hello` - Say hello  
-`!defam @user` - A fun poke at a user  
-
+**Fun / Test**
+`!hello` - Say hello to the bot  
+`!defam @user` - Playfully poke a user ("is a potato")  
 """
     await ctx.send(help_text)
+
 
 
 @bot.command(name="defam")
