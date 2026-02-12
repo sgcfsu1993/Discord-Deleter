@@ -251,7 +251,144 @@ async def on_message(message):
 
 
 # ---------------- Role Assign ----------------
-# (rest of your file remains unchanged)
+# To assign roles
+@bot.command()
+@commands.has_permissions(manage_roles=True)
+async def addroles(ctx, role_name: str, internal_id: str):
+    guild_id = str(ctx.guild.id)
+    if guild_id not in role_map:
+        role_map[guild_id] = {}
+
+    # Check if the role already exists
+    discord_role = discord.utils.get(ctx.guild.roles, name=role_name)
+    if not discord_role:
+        try:
+            # Create the role with general permissions
+            general_perms = discord.Permissions(
+                read_messages=True,
+                send_messages=True,
+                connect=True,
+                speak=True,
+                view_channel=True
+            )
+            discord_role = await ctx.guild.create_role(
+                name=role_name,
+                permissions=general_perms,
+                reason=f"Role created by bot for internal ID {internal_id}"
+            )
+            await ctx.send(f"Created role `{role_name}` in this server with general permissions.")
+        except discord.Forbidden:
+            await ctx.send("I do not have permission to create roles.")
+            return
+        except Exception as e:
+            await ctx.send(f"Failed to create role: {e}")
+            return
+    else:
+        await ctx.send(f"Role `{role_name}` already exists.")
+
+    # Save the internal ID mapping
+    role_map[guild_id][internal_id] = role_name
+    save_roles(role_map)
+    await ctx.send(f"Added role mapping: {internal_id} -> {role_name}")
+
+@bot.command()
+async def roles(ctx):
+    guild_id = str(ctx.guild.id)
+    if guild_id not in role_map or not role_map[guild_id]:
+        await ctx.send("No roles have been added yet.")
+        return
+
+    message = "Available roles:\n"
+    for internal_id, role_name in role_map[guild_id].items():
+        message += f"{internal_id}: {role_name}\n"
+    await ctx.send(message)
+
+@bot.command()
+async def assign(ctx, member: discord.Member, internal_id: str):
+    guild_id = str(ctx.guild.id)
+    if guild_id not in role_map or internal_id not in role_map[guild_id]:
+        await ctx.send(f"{internal_id} is not a valid role ID in this server.")
+        return
+
+    role_name = role_map[guild_id][internal_id]
+    discord_role = discord.utils.get(ctx.guild.roles, name=role_name)
+
+    if not discord_role:
+        await ctx.send(f"The role `{role_name}` does not exist in this server.")
+        return
+
+    try:
+        await member.add_roles(discord_role)
+        await ctx.send(f"Assigned role `{role_name}` to {member.display_name}")
+    except discord.Forbidden:
+        await ctx.send("I do not have permission to assign that role.")
+    except Exception as e:
+        await ctx.send(f"Failed to assign role: {e}")
+
+
+# To remove member roles
+@bot.command()
+@commands.has_permissions(manage_roles=True)
+async def removeroles(ctx, member: discord.Member, role_id: str):
+    guild_id = str(ctx.guild.id)
+
+    # Check if the server has roles mapped
+    if guild_id not in role_map or role_id not in role_map[guild_id]:
+        await ctx.send(f"{role_id} is not a valid role ID in this server. Use !roles to see available roles.")
+        return
+
+    role_name = role_map[guild_id][role_id]
+    role = discord.utils.get(ctx.guild.roles, name=role_name)
+
+    if not role:
+        await ctx.send(f"The role `{role_name}` does not exist in this server.")
+        return
+
+    if role not in member.roles:
+        await ctx.send(f"{member.mention} does not have the role `{role.name}`.")
+        return
+
+    try:
+        await member.remove_roles(role)
+        await ctx.send(f"{role.name} has been removed from {member.mention}.")
+    except discord.Forbidden:
+        await ctx.send("I do not have permission to remove that role.")
+    except Exception as e:
+        await ctx.send(f"Failed to remove role: {e}")
+
+@bot.command()
+@commands.has_permissions(manage_roles=True)
+async def deleteroles(ctx, internal_id: str):
+    guild_id = str(ctx.guild.id)
+
+    # Check if the role exists in the internal mapping
+    if guild_id not in role_map or internal_id not in role_map[guild_id]:
+        await ctx.send(f"{internal_id} is not a valid role ID in this server. Use !roles to see available roles.")
+        return
+
+    role_name = role_map[guild_id][internal_id]
+    discord_role = discord.utils.get(ctx.guild.roles, name=role_name)
+
+    if not discord_role:
+        # Role doesn't exist in the server but still remove mapping
+        await ctx.send(f"Role `{role_name}` does not exist in the server, removing from mapping.")
+    else:
+        try:
+            await discord_role.delete(reason=f"Deleted by bot via internal ID {internal_id}")
+            await ctx.send(f"Role `{role_name}` has been deleted from the server.")
+        except discord.Forbidden:
+            await ctx.send("I do not have permission to delete that role.")
+            return
+        except Exception as e:
+            await ctx.send(f"Failed to delete role: {e}")
+            return
+
+    # Remove role from internal mapping and save
+    del role_map[guild_id][internal_id]
+    save_roles(role_map)
+    await ctx.send(f"Internal mapping for ID `{internal_id}` has been removed.")
+
+# ---------------- Simple test/joke/help commands ----------------
 
 @bot.command()
 async def hello(ctx):
