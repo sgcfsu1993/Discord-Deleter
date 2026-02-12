@@ -11,6 +11,7 @@ __pycache__/
 # Ignore JSON files with sensitive info
 roles.json
 channel_config.json
+timed_purge.json
 
 # Igonre .idea
 .idea/
